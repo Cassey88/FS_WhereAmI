@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10141F">
+<title>Web Shortcut</title>
+<link rel="manifest" href="manifest.json" id="manifestLink">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --ink:#10141F; --panel:#181E2C; --line:#242C3E;
+    --amber:#FFB454; --amber-press:#E89A33;
+    --text:#F2F4F8; --muted:#8A93A6;
+  }
+  *{box-sizing:border-box; margin:0}
+  html,body{height:100%}
+  body{
+    background:var(--ink); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom));
+  }
+  header{width:100%; max-width:420px; display:flex; align-items:center; justify-content:space-between; padding:8px 4px 0; gap:10px}
+  header h1{font-size:15px; font-weight:600; letter-spacing:.4px}
+  header .dot{color:var(--amber)}
+  header .slotTag{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; color:var(--muted);
+    border:1px solid var(--line); padding:3px 8px; border-radius:999px}
+  .pillBtn{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer; white-space:nowrap;
+  }
+  #installBtn{display:none}
+  main{flex:1; width:100%; max-width:420px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; padding:16px 0}
+
+  #launch{
+    width:min(58vw,220px); aspect-ratio:1; border-radius:50%;
+    background:var(--amber); border:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    color:#1A1204; box-shadow:0 0 0 10px rgba(255,180,84,.08), 0 0 0 22px rgba(255,180,84,.04);
+    transition:transform .08s ease, background .08s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #launch:active{transform:scale(.96); background:var(--amber-press)}
+  #launch:focus-visible{outline:3px solid var(--text); outline-offset:4px}
+  #launch .ext{
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; font-weight:700;
+    background:#1A1204; color:var(--amber); padding:3px 10px; border-radius:6px; letter-spacing:1px;
+  }
+  #launch .action{font-size:19px; font-weight:700}
+  #launch .hint{font-size:12px; opacity:.75}
+
+  .field{width:100%; display:flex; flex-direction:column; gap:8px; font-size:13px; color:var(--muted); padding:0 2px}
+  .controls{display:flex; gap:10px}
+  .controls input{
+    flex:1; background:var(--panel); border:1px solid var(--line); color:var(--text);
+    font-size:14px; padding:11px 12px; border-radius:10px; min-width:0;
+  }
+  .controls input:focus{outline:2px solid var(--amber); outline-offset:-1px}
+  .controls button{
+    background:var(--panel); border:1px solid var(--line); color:var(--text);
+    font-size:14px; padding:11px 18px; border-radius:10px; cursor:pointer;
+  }
+  #urlShow{
+    width:100%; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px; display:none; align-items:center; gap:12px;
+  }
+  #urlShow .u{
+    flex:1; min-width:0; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text);
+  }
+  #editBtn{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    font-size:12px; padding:7px 12px; border-radius:8px; cursor:pointer; flex-shrink:0;
+  }
+  .toggleRow{width:100%; display:none; align-items:center; justify-content:space-between;
+    gap:12px; padding:4px 6px; font-size:13px; color:var(--muted)}
+  .toggleRow input{width:20px; height:20px; accent-color:var(--amber); flex-shrink:0}
+
+  #shortcutList{width:100%; display:none; flex-direction:column; gap:8px; padding-top:4px}
+  #shortcutList h2{font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.5px; text-transform:uppercase}
+  .slotItem{
+    display:flex; align-items:center; gap:10px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:10px 14px;
+    color:var(--text); text-decoration:none; font-size:14px;
+  }
+  .slotItem .num{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; color:var(--amber); flex-shrink:0}
+  .slotItem .nm{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .slotItem .cur{font-size:11px; color:var(--muted)}
+  #status{min-height:20px; font-size:13px; color:var(--muted); text-align:center; padding:0 10px}
+  #status.err{color:#FF8080}
+  footer{font-size:11px; color:var(--muted); text-align:center; max-width:420px; padding-top:12px; line-height:1.5}
+  @media (prefers-reduced-motion:reduce){ #launch{transition:none} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Web Shortcut<span class="dot">.</span></h1>
+  <span class="slotTag" id="slotTag"></span>
+  <button class="pillBtn" id="newSlotBtn">+ New shortcut</button>
+  <button class="pillBtn" id="installBtn">Add to home screen</button>
+</header>
+
+<main>
+  <button id="launch" aria-label="Open web page">
+    <span class="ext">WWW</span>
+    <span class="action" id="launchLabel">Set a web page</span>
+    <span class="hint" id="launchHint">paste its address below</span>
+  </button>
+
+  <div id="urlShow">
+    <span class="u" id="urlText"></span>
+    <button id="editBtn">Edit</button>
+  </div>
+
+  <div class="field" id="urlField">
+    <label for="urlInput">Web page address</label>
+    <div class="controls">
+      <input type="url" id="urlInput" inputmode="url" autocapitalize="off" autocorrect="off"
+             placeholder="https://…  (paste the address here)">
+      <button id="saveUrlBtn">Save</button>
+    </div>
+  </div>
+
+  <div class="field" id="nameField" style="display:none">
+    <label for="appName">Home screen name for this shortcut</label>
+    <div class="controls">
+      <input type="text" id="appName" maxlength="30" placeholder="Web Shortcut">
+      <button id="saveNameBtn">Save</button>
+    </div>
+  </div>
+
+  <div class="toggleRow" id="autoRow">
+    <label for="autoOpen">Open instantly when app launches</label>
+    <input type="checkbox" id="autoOpen">
+  </div>
+
+  <div id="shortcutList">
+    <h2>Your shortcuts</h2>
+  </div>
+
+  <div id="status" role="status"></div>
+</main>
+
+<footer>
+  Each shortcut is its own home screen icon pointing at a web page.
+  Add ?stay=1 to this app’s address to always land here without auto-opening.
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const DB='webShortcut', STORE='kv', MAX_SLOTS=20;
+
+const _params = new URLSearchParams(location.search);
+const slot = (_params.get('slot')||'1').replace(/[^0-9]/g,'')||'1';
+const stayHere = !!_params.get('stay');
+const k = n => slot==='1' ? n : 's'+slot+':'+n;
+$('slotTag').textContent = 'shortcut #'+slot;
+$('manifestLink').href = 'manifest.json?slot='+slot;
+
+let deferredPrompt=null;
+
+// ---------- IndexedDB (shared with the service worker for manifest names) ----------
+function idb(){ return new Promise((res,rej)=>{
+  const r=indexedDB.open(DB,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+});}
+async function kvSet(key,v){ const d=await idb(); return new Promise((res,rej)=>{
+  const t=d.transaction(STORE,'readwrite'); t.objectStore(STORE).put(v,key);
+  t.oncomplete=res; t.onerror=()=>rej(t.error);
+});}
+async function kvGet(key){ const d=await idb(); return new Promise((res,rej)=>{
+  const q=d.transaction(STORE).objectStore(STORE).get(key);
+  q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error);
+});}
+
+function setStatus(msg,err){ $('status').textContent=msg||''; $('status').className=err?'err':''; }
+
+function normalizeUrl(v){
+  v=(v||'').trim();
+  if(!v) return null;
+  if(!/^https?:\/\//i.test(v)) v='https://'+v;
+  try{ return new URL(v).href; }catch(e){ return null; }
+}
+function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; } }
+
+function showUrlUI(url){
+  $('launchLabel').textContent='Open';
+  $('launchHint').textContent=hostOf(url);
+  $('urlText').textContent=url;
+  $('urlShow').style.display='flex';
+  $('urlField').style.display='none';
+  $('nameField').style.display='flex';
+  $('autoRow').style.display='flex';
+}
+function showEditUI(url){
+  $('urlInput').value=url||'';
+  $('urlField').style.display='flex';
+  $('urlShow').style.display='none';
+  $('urlInput').focus();
+}
+
+// ---------- save URL ----------
+$('saveUrlBtn').addEventListener('click',async()=>{
+  const url=normalizeUrl($('urlInput').value);
+  if(!url){ setStatus('That doesn’t look like a valid address.',true); return; }
+  await kvSet(k('url'),url);
+  if(!localStorage.getItem(k('autoOpen'))){
+    localStorage.setItem(k('autoOpen'),'1'); $('autoOpen').checked=true;
+  }
+  showUrlUI(url);
+  const existingName=await kvGet(k('appName'));
+  if(!existingName){
+    const nm=hostOf(url);
+    $('appName').value=nm; await kvSet(k('appName'),nm); document.title=nm;
+  }
+  setStatus('Saved. Set the name if you like, then Add to home screen.');
+  renderSlots();
+});
+$('editBtn').addEventListener('click',async()=>{
+  showEditUI(await kvGet(k('url')));
+});
+
+// ---------- launch ----------
+$('launch').addEventListener('click',async()=>{
+  const url=await kvGet(k('url'));
+  if(!url){ $('urlInput').focus(); return; }
+  sessionStorage.setItem('ws-opened-'+slot,'1');
+  location.assign(url);
+});
+
+// ---------- name ----------
+$('saveNameBtn').addEventListener('click',async()=>{
+  const v=$('appName').value.trim()||('Web Shortcut '+slot);
+  await kvSet(k('appName'),v);
+  document.title=v;
+  renderSlots();
+  setStatus('Name saved. Now use “Add to home screen” — the icon will be called “'+v+'”.');
+});
+
+// ---------- auto-open ----------
+$('autoOpen').addEventListener('change',e=>{
+  localStorage.setItem(k('autoOpen'),e.target.checked?'1':'');
+  setStatus(e.target.checked?'Launching the icon will jump straight to the page.':'');
+});
+
+// ---------- multi-shortcut ----------
+async function slotInfo(n){
+  const key = n===1 ? (x=>x) : (x=>'s'+n+':'+x);
+  const u=await kvGet(key('url'));
+  if(!u) return null;
+  const name=await kvGet(key('appName'));
+  return { n, name: name || hostOf(u) };
+}
+async function renderSlots(){
+  const list=$('shortcutList');
+  [...list.querySelectorAll('.slotItem')].forEach(el=>el.remove());
+  let count=0;
+  for(let n=1;n<=MAX_SLOTS;n++){
+    const info=await slotInfo(n);
+    if(!info) continue;
+    count++;
+    const a=document.createElement('a');
+    a.className='slotItem';
+    a.href='index.html?slot='+n+'&stay=1';
+    a.innerHTML='<span class="num">#'+n+'</span><span class="nm"></span>'+
+      (String(n)===slot?'<span class="cur">(this one)</span>':'');
+    a.querySelector('.nm').textContent=info.name;
+    list.appendChild(a);
+  }
+  list.style.display = count>1 ? 'flex' : 'none';
+}
+$('newSlotBtn').addEventListener('click',async()=>{
+  for(let n=1;n<=MAX_SLOTS;n++){
+    if(!(await slotInfo(n))){ location.assign('index.html?slot='+n+'&stay=1'); return; }
+  }
+  setStatus('All '+MAX_SLOTS+' shortcut slots are in use.',true);
+});
+
+// ---------- install prompt ----------
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredPrompt=e; $('installBtn').style.display='block';
+});
+$('installBtn').addEventListener('click',async()=>{
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt=null; $('installBtn').style.display='none';
+});
+
+// ---------- boot ----------
+(async function init(){
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  try{
+    const url=await kvGet(k('url'));
+    const savedName=await kvGet(k('appName'));
+    if(savedName){ $('appName').value=savedName; document.title=savedName; }
+    $('autoOpen').checked=!!localStorage.getItem(k('autoOpen'));
+    if(url){
+      showUrlUI(url);
+      const freshLaunch = !stayHere && !sessionStorage.getItem('ws-opened-'+slot);
+      if(freshLaunch && localStorage.getItem(k('autoOpen'))){
+        sessionStorage.setItem('ws-opened-'+slot,'1');
+        location.assign(url);
+      }
+    }else{
+      showEditUI('');
+    }
+    renderSlots();
+  }catch(e){ setStatus('Could not load saved settings.',true); }
+})();
+</script>
+</body>
+</html>
